@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import CreateResume from './pages/CreateResume';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword'; // Import the ResetPassword component
 import NotFound from './pages/NotFound';
 import ATSTracker from './pages/ATSTracker';
 
@@ -38,6 +39,14 @@ function App() {
                 element={
                   <AuthLayout>
                     <Register />
+                  </AuthLayout>
+                }
+              />
+              <Route
+                path="reset-password"
+                element={
+                  <AuthLayout>
+                    <ResetPassword />
                   </AuthLayout>
                 }
               />

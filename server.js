@@ -1,81 +1,76 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import OpenAI from 'openai';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+
 
 dotenv.config();
 
 const app = express();
-
-// ✅ CORS configuration to allow frontend origin and handle preflight
-const corsOptions = {
-  origin: 'http://localhost:5175', // your frontend dev server
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // handle preflight requests
-
+app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-app.post('/generate-resume', async (req, res) => {
-  const { name, email, jobTitle, company } = req.body;
+app.post("/generate-resume", async (req, res) => {
+  try {
+    const { name, email, jobTitle, company } = req.body;
 
-  if (!name || !email || !jobTitle || !company) {
-    return res.status(400).json({ error: "Missing required fields." });
-  }
+    if (!name || !email || !jobTitle || !company) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
 
-  const prompt = `
-Generate a professional resume and cover letter for the following:
+    
+    const resumeResponse = await client.chat.completions.create({
+      model: "gpt-4o-mini", 
+      messages: [
+        { role: "system", content: "You are a resume generator." },
+        {
+          role: "user",
+          content: `Generate a professional resume for ${name} (email: ${email}), applying for the role of ${jobTitle} at ${company}. Include skills, achievements, and relevant experience.`,
+        },
+      ],
+      temperature: 0.7,
+    });
 
-Name: ${name}
-Email: ${email}
-Job Title: ${jobTitle}
-Company: ${company}
+    const tailoredResume = resumeResponse.choices[0].message.content || "";
 
-Return a JSON object with:
-{
-  "tailoredResume": "...",
-  "coverLetter": "...",
-  "matchScore": number between 80-100
-}
-`;
+    
+    const coverResponse = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a cover letter generator." },
+        {
+          role: "user",
+          content: `Write a compelling cover letter for ${name}, applying for the ${jobTitle} role at ${company}. Highlight relevant skills, enthusiasm, and motivation.`,
+        },
+      ],
+      temperature: 0.7,
+    });
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7
-    });
+    const coverLetter = coverResponse.choices[0].message.content || "";
 
-    const content = completion.choices[0].message.content;
-
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      parsed = {
-        tailoredResume: content,
-        coverLetter: content,
-        matchScore: Math.floor(Math.random() * 21) + 80
-      };
-    }
-
-    res.json(parsed);
-  } catch (err) {
-    console.error('Error generating resume:', err);
-    res.status(500).json({ error: 'Failed to generate resume.' });
-  }
+    
+    res.status(200).json({
+      name,
+      email,
+      jobTitle,
+      company,
+      tailoredResume,
+      coverLetter,
+      matchScore: Math.floor(Math.random() * 21) + 80, // random 80-100
+    });
+  } catch (error) {
+    console.error("Resume generation failed:", error);
+    res.status(500).json({ error: "Failed to generate documents" });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+
+const PORT = process.env.PORT || 5500;
+app.listen(PORT, () =>
+  console.log(`✅ Server running on http://localhost:${PORT}`)
+);
